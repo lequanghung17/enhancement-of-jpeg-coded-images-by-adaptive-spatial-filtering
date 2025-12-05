@@ -71,17 +71,14 @@ class EdgeDetector:
         self.window = window.copy()
         self.tau1 = float(tau1); self.tau2 = float(tau2); self.tau3 = float(tau3)
     def step1(self) -> bool:
-        w = self.window[1:4,1:4].flatten()
-        w.sort()
-        Jmax1, Jmin1 = w[-2], w[1]
-        R9 = Jmax1 - Jmin1
-        T = (Jmax1 + Jmin1) / 2.0
-        T0 = float(self.window[2,2])
-        return not (R9 <= self.tau1 or T0 >= T)
+        w = self.window.flatten()
+        r = float(w.max() - w.min())
+        return r > self.tau1
+
     def step2(self) -> int:
         order = self.window.flatten()
         order.sort()
-        S_h = order[21]
+        S_h = order[21]                      # phần tử ~88% của 25 phần tử 
         Tavg = float(np.average(order))
         cnt = 0
         for i in range(5):
@@ -89,9 +86,12 @@ class EdgeDetector:
                 if (Tavg - float(self.window[i,j])) > S_h / self.tau2:
                     cnt += 1
         return cnt
+
+
     def step3(self, count: int) -> bool:
-        stat = (count - 12.5)/2.5
-        return abs(stat) <= self.tau3
+        # H: with 25 samples (5×5), E=12.5, sigma=2.5
+        z = (count - 12.5) / 2.5
+        return abs(z) <= self.tau3
     def classify(self) -> str:
         if self.step1():
             c = self.step2()
@@ -103,7 +103,6 @@ class TexelDetector:
     def __init__(self, window: np.ndarray, beta: float=12):
         self.window = window.copy().astype(np.float64)
         self.n, _ = self.window.shape
-        # self.eta = int((self.n*self.n)/4 * 0.125 * 4)
         self.eta = int((self.n*self.n) * 0.5)
         self.beta = float(beta)
     def subtract_mean(self):
